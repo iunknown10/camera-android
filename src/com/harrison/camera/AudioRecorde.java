@@ -18,7 +18,7 @@ public class AudioRecorde {
 		
 		int audioSource = AudioSource.MIC;
 		int sampleRateInHz = 44100;
-		int channelConfig = AudioFormat.CHANNEL_IN_MONO;
+		int channelConfig = AudioFormat.CHANNEL_IN_STEREO;
 		int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
 		int bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
 		

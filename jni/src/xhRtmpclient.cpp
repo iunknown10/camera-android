@@ -76,13 +76,8 @@ char * put_amf_double( char *c, double d )
     return c+8;
 }
 
-xhRTMPStream::xhRTMPStream(void):
-_pRtmp(NULL),
-_nFileBufSize(0),
-_nCurPos(0)
+xhRTMPStream::xhRTMPStream(void) : _pRtmp(NULL)
 {
-    _pFileBuf = new unsigned char[FILEBUFSIZE];
-    memset(_pFileBuf,0,FILEBUFSIZE);
     _pRtmp = RTMP_Alloc();
     RTMP_Init(_pRtmp);
 }
@@ -90,7 +85,6 @@ _nCurPos(0)
 xhRTMPStream::~xhRTMPStream(void)
 {
     Close();
-    delete[] _pFileBuf;
 }
 
 bool xhRTMPStream::Connect(const char* url)
@@ -146,7 +140,7 @@ bool xhRTMPStream::SendMetadata(LPRTMPMetadata lpMetaData)
     if(lpMetaData == NULL)
         return false;
 
-    char body[1024] = {0};;
+    char body[1024] = {0};
     
     char * p = (char *)body;
     p = put_byte(p, AMF_STRING );
@@ -160,20 +154,20 @@ bool xhRTMPStream::SendMetadata(LPRTMPMetadata lpMetaData)
     p = put_byte(p, AMF_STRING );
     p = put_amf_string( p, "firehood" );
     
-    p =put_amf_string( p, "width");
-    p =put_amf_double( p, lpMetaData->nWidth);
+    p = put_amf_string( p, "width");
+    p = put_amf_double( p, lpMetaData->nWidth);
     
-    p =put_amf_string( p, "height");
-    p =put_amf_double( p, lpMetaData->nHeight);
+    p = put_amf_string( p, "height");
+    p = put_amf_double( p, lpMetaData->nHeight);
     
-    p =put_amf_string( p, "framerate" );
-    p =put_amf_double( p, lpMetaData->nFrameRate);
+    p = put_amf_string( p, "framerate" );
+    p = put_amf_double( p, lpMetaData->nFrameRate);
     
-    p =put_amf_string( p, "videocodecid" );
-    p =put_amf_double( p, FLV_CODECID_H264 );
+    p = put_amf_string( p, "videocodecid" );
+    p = put_amf_double( p, FLV_CODECID_H264 );
     
-    p =put_amf_string( p, "" );
-    p =put_byte( p, AMF_OBJECT_END  );
+    p = put_amf_string( p, "" );
+    p = put_byte( p, AMF_OBJECT_END  );
         
     SendPacket(RTMP_PACKET_TYPE_INFO,(unsigned char*)body,p-body,0);
     
@@ -214,6 +208,38 @@ bool xhRTMPStream::SendMetadata(LPRTMPMetadata lpMetaData)
     
 }
 
+int xhRTMPStream::SendAACSpec()
+{
+    RTMPPacket packet;
+    RTMPPacket_Reset(&packet);
+    RTMPPacket_Alloc(&packet, 4);
+    
+    unsigned char *body = new unsigned char[4];
+
+    /*AF 00 + AAC RAW data*/
+    body[0] = 0xAF;
+    body[1] = 0x00;
+    body[2] = 0x12;
+    body[4] = 0x10;
+    
+    packet.m_packetType = RTMP_PACKET_TYPE_AUDIO;
+    packet.m_nBodySize = 4;
+    packet.m_nChannel = 0x04;
+    packet.m_nTimeStamp = 0;
+    packet.m_hasAbsTimestamp = 0;
+    packet.m_headerType = RTMP_PACKET_SIZE_MEDIUM;
+    packet.m_nInfoField2 = _pRtmp->m_stream_id;
+    memcpy(packet.m_body,body,4);
+    
+    /*调用发送接口*/
+    int nRet = RTMP_SendPacket(_pRtmp, &packet, false);
+    
+    RTMPPacket_Free(&packet);
+    delete []body;
+    
+    return nRet;
+}
+
 int xhRTMPStream::SendAACPacket(unsigned char *data, unsigned int size)
 {
     RTMPPacket packet;
@@ -245,66 +271,7 @@ int xhRTMPStream::SendAACPacket(unsigned char *data, unsigned int size)
     return nRet;
 }
 
-int xhRTMPStream::SendH264spspps(unsigned char *sps, unsigned int spsSize, unsigned char *pps, unsigned int ppsSize)
-{
-    if (sps == NULL || pps == NULL)
-        return 0;
-
-    unsigned char* body = new unsigned char[spsSize+ppsSize+24];
-    int i = 0;
-    body[i++] = 0x17;
-    body[i++] = 0x00;
- 
-    body[i++] = 0x00;
-    body[i++] = 0x00;
-    body[i++] = 0x00;
- 
-    /*AVCDecoderConfigurationRecord*/
-    body[i++] = 0x01;
-    body[i++] = sps[1];
-    body[i++] = sps[2];
-    body[i++] = sps[3];
-    body[i++] = 0xff;
- 
-    /*sps*/
-    body[i++]   = 0xe1;
-    body[i++] = (spsSize >> 8) & 0xff;
-    body[i++] = spsSize & 0xff;
-    memcpy(&body[i],sps,spsSize);
-    i +=  spsSize;
- 
-    /*pps*/
-    body[i++]   = 0x01;
-    body[i++] = (ppsSize >> 8) & 0xff;
-    body[i++] = (ppsSize) & 0xff;
-    memcpy(&body[i],pps,ppsSize);
-    i +=  ppsSize;
-
-    RTMPPacket packet;
-    RTMPPacket_Reset(&packet);
-    RTMPPacket_Alloc(&packet, i);
-
-    packet.m_packetType = RTMP_PACKET_TYPE_VIDEO;
-    packet.m_nBodySize = i;
-    packet.m_nChannel = 0x04;
-    packet.m_nTimeStamp = 0;
-    packet.m_hasAbsTimestamp = 0;
-    packet.m_headerType = RTMP_PACKET_SIZE_MEDIUM;
-    packet.m_nInfoField2 = _pRtmp->m_stream_id;
-    memcpy(packet.m_body,body,i);
-
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "send sps|ppsadfadfad");
- 
-    /*调用发送接口*/
-    int nRet = RTMP_SendPacket(_pRtmp,&packet,false);
-
-    RTMPPacket_Free(&packet);
-    delete []body;
- 
-    return nRet;
-}
-
-int xhRTMPStream::SendH264Packet(unsigned char *data,unsigned int size,unsigned int nTimeStamp)
+int xhRTMPStream::SendH264Packet(unsigned char *data,unsigned int size, bool keyFrame, unsigned int nTimeStamp)
 {
     if(data == NULL && size < 11)
         return false;
@@ -312,8 +279,7 @@ int xhRTMPStream::SendH264Packet(unsigned char *data,unsigned int size,unsigned 
     unsigned char *body = new unsigned char[size+9];
     
     int i = 0;
-#define NAL_SLICE_IDR 5
-    if(data[0]&0x1f == NAL_SLICE_IDR)
+    if(keyFrame)
     {
         body[i++] = 0x17;// 1:Iframe  7:AVC
     }

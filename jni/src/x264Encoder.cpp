@@ -102,7 +102,7 @@ void X264Encoder::encode(char* pixels, int size)
         }
         else
         {
-            if (callback) callback->dataCallback(nals[i].p_payload, nals[i].i_payload);
+            if (callback) callback->dataCallback(nals[i].p_payload, nals[i].i_payload, pic_out.b_keyframe==1);
         }
     }
 }

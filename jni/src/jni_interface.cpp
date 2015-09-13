@@ -17,17 +17,30 @@ static AVCodecContext *avContext = NULL;
 static AVFrame *frame = NULL;
 static uint16_t *samples = NULL;
 
+static int videoWidth = 0;
+static int VideoHeight = 0;
+
 class encoderHandler : public X264Handler
 {
 public:
     virtual void spsppsCallback(uint8_t* sps, int spsSize, uint8_t* pps, int ppsSize);
-    virtual void dataCallback(uint8_t* data, int size);
+    virtual void dataCallback(uint8_t* data, int size, bool keyFrame);
 };
 
 void encoderHandler::spsppsCallback(uint8_t* sps, int spsSize, uint8_t* pps, int ppsSize)
 {
-	__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "send sps|pps %d:%d:%d:%d", spsSize, ppsSize, sps, pps);
-	stream.SendH264spspps(sps, spsSize, pps, ppsSize);
+	RTMPMetadata metaData;  
+    memset(&metaData,0,sizeof(RTMPMetadata));
+    metaData.nSpsLen = spsSize;
+    memcpy(metaData.Sps,sps,spsSize);
+
+    metaData.nPpsLen = ppsSize;  
+    memcpy(metaData.Pps,pps,ppsSize);
+
+    metaData.nWidth = videoWidth;  
+    metaData.nHeight = VideoHeight;  
+    metaData.nFrameRate = 25;
+    stream.SendMetadata(&metaData);
 }
 
 long long GetTickCount()
@@ -38,18 +51,26 @@ long long GetTickCount()
     return (((long long)(tv.tv_sec) * 1000)+ tv.tv_usec/1000);
 }
 
-void encoderHandler::dataCallback(uint8_t* data, int size)
+void encoderHandler::dataCallback(uint8_t* data, int size, bool keyFrame)
 {
 	static long long startTime = GetTickCount();
 	long pts = GetTickCount() - startTime;
-	__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "send data %d----%ld", size, pts);
-	stream.SendH264Packet(data, size, pts);
+
+	int decollator = 0;
+	if (data[2] == 0x00)
+	{
+		decollator = 4;
+	} 
+	else if (data[2] == 0x01)
+	{
+		decollator = 3;
+	}
+
+	stream.SendH264Packet(data+decollator, size-decollator, keyFrame, pts);
 }
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
-	__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "start jni");
-
 	s_javavm = vm;
 
 	JNIEnv* env;
@@ -143,6 +164,7 @@ JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_initAudio) (JNIEnv * env, jobje
 {
 	if (!initaac())
 		__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "init aac failed");
+	stream.SendAACSpec();
 }
 
 JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_stopAudio) (JNIEnv * env, jobject obj)
@@ -154,6 +176,8 @@ JNIEXPORT void JNICALL JNI_FUNCTION(CameraPreview_initVideo) (JNIEnv * env, jobj
 {
 	if (!encoder.open(width, height, width, height))
 	{
+		videoWidth = width;
+		VideoHeight = height;
 		__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "encoder open failed");
 	}
 	else
@@ -201,7 +225,8 @@ JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_processAudio) (JNIEnv * env, jo
     }
     else if (got_output)
     {
-    	//stream.SendAACPacket(pkt.data, pkt.size);
+	    //ignore 7 bit decollator
+    	stream.SendAACPacket(pkt.data+7, pkt.size-7);
     }
     
     av_free_packet(&pkt);

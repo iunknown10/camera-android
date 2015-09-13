@@ -57,9 +57,9 @@ public:
     void Close();
     // 发送MetaData
     bool SendMetadata(LPRTMPMetadata lpMetaData);
-    // 发送H264数据帧
-    int SendH264spspps(unsigned char *sps, unsigned int spsSize, unsigned char *pps, unsigned int ppsSize);
-    int SendH264Packet(unsigned char *data,unsigned int size,unsigned int nTimeStamp);
+    int SendH264Packet(unsigned char *data,unsigned int size, bool keyFrame, unsigned int nTimeStamp);
+  
+    int SendAACSpec();
     int SendAACPacket(unsigned char *data, unsigned int size);
 private:
     // 送缓存中读取一个NALU包
@@ -68,9 +68,6 @@ private:
     int SendPacket(unsigned int nPacketType,unsigned char *data,unsigned int size,unsigned int nTimestamp);
 private:
     RTMP* _pRtmp;
-    unsigned char* _pFileBuf;
-    unsigned int  _nFileBufSize;
-    unsigned int  _nCurPos;
 };
 
 #endif

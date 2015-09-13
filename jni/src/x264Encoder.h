@@ -29,7 +29,7 @@ class X264Handler
 {
 public:
     virtual void spsppsCallback(uint8_t* sps, int spsSize, uint8_t* pps, int ppsSize)=0;
-    virtual void dataCallback(uint8_t* data, int size)=0;
+    virtual void dataCallback(uint8_t* data, int size, bool keyFrame)=0;
 };
 
 class X264Encoder
