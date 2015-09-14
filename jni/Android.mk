@@ -1,14 +1,12 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-FFMPEG_LIB_PATH := /Users/heyunpeng/workstation/src/AndroidFFmpeg/library-jni/jni/ffmpeg-build/armeabi-v7a-neon/lib
-X264_LIB_PATH := /Users/heyunpeng/workstation/src/x264-android/build/android/lib
-OPENSSL_LIB_PATH := /Users/heyunpeng/workstation/src/OpenSSL1.0.1cForAndroid/obj/local/armeabi-v7a
+FFMPEG_LIB_PATH := ${LOCAL_PATH}/../third_party/libs
+X264_LIB_PATH := ${LOCAL_PATH}/../third_party/libs
+OPENSSL_LIB_PATH := ${LOCAL_PATH}/../third_party/libs
 
 LOCAL_MODULE    := core
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH) \
-                        $(MY_DIR)/src \
 
 LOCAL_SRC_FILES := src/jni_interface.cpp \
 					src/x264Encoder.cpp \
@@ -19,17 +17,26 @@ LOCAL_SRC_FILES := src/jni_interface.cpp \
 					src/rtmp/parseurl.c \
 					src/rtmp/rtmp.c \
 
+
 LOCAL_CFLAGS += -DBUILD_OGLES2
 LOCAL_CFLAGS += -W -Wall
 
 LOCAL_CPPFLAGS += -frtti
 
-LOCAL_C_INCLUDES := /Users/heyunpeng/workstation/src/AndroidFFmpeg/library-jni/jni/ffmpeg \
-					/Users/heyunpeng/workstation/src/librtmp-android/jni/include \
-					/Users/heyunpeng/workstation/src/x264-android/build/android/include \
-					/Users/heyunpeng/workstation/src/librtmp-android/jni/include \
-					/Users/heyunpeng/workstation/src/librtmp-android/jni/include/librtmp \
-					/Users/heyunpeng/workstation/src/OpenSSL-for-iPhone/include \
+LOCAL_C_INCLUDES := $(LOCAL_PATH) \
+                    $(LOCAL_PATH)/src \
+                    ${LOCAL_PATH}/../third_party/include\
+                    ${LOCAL_PATH}/../third_party/include/ffmpeg\
+                    ${LOCAL_PATH}/../third_party/include/librtmp\
+
+
+#					/Users/heyunpeng/workstation/src/AndroidFFmpeg/library-jni/jni/ffmpeg \
+#					/Users/heyunpeng/workstation/src/librtmp-android/jni/include \
+#					/Users/heyunpeng/workstation/src/x264-android/build/android/include \
+#					/Users/heyunpeng/workstation/src/librtmp-android/jni/include \
+#					/Users/heyunpeng/workstation/src/librtmp-android/jni/include/librtmp \
+#					/Users/heyunpeng/workstation/src/OpenSSL-for-iPhone/include \
+					
 
 LOCAL_LDLIBS += -L$(FFMPEG_LIB_PATH) -lswscale
 LOCAL_LDLIBS += -L$(FFMPEG_LIB_PATH) -lfribidi
