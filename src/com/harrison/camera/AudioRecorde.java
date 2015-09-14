@@ -14,7 +14,7 @@ public class AudioRecorde {
 
 	static void startRecorde() {
 		
-		initAudio();
+		final int bufferSize = initAudio();
 		
 		int audioSource = AudioSource.MIC;
 		int sampleRateInHz = 44100;
@@ -34,8 +34,8 @@ public class AudioRecorde {
 		recordingThread = new Thread(new Runnable() {
 			public void run(){
 				while (isRecording){
-					byte sData[] = new byte[1024];
-					int nSize = audioRecorder.read(sData, 0, 1024);
+					byte sData[] = new byte[bufferSize];
+					int nSize = audioRecorder.read(sData, 0, bufferSize);
 					processAudio(sData, nSize);
 				}
 			}
@@ -59,7 +59,7 @@ public class AudioRecorde {
 		stopAudio();
 	}
 	
-	static native void initAudio();
+	static native int initAudio();
 	static native void processAudio(byte[] data, int size);
 	static native void stopAudio();
 }
