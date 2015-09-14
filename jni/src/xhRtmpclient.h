@@ -59,8 +59,8 @@ public:
     bool SendMetadata(LPRTMPMetadata lpMetaData);
     int SendH264Packet(unsigned char *data,unsigned int size, bool keyFrame, unsigned int nTimeStamp);
   
-    int SendAACSpec();
-    int SendAACPacket(unsigned char *data, unsigned int size);
+    int SendAACSpec(unsigned char *data, unsigned int size);
+    int SendAACPacket(unsigned char *data, unsigned int size, unsigned int nTimestamp);
 private:
     // 送缓存中读取一个NALU包
     bool ReadOneNaluFromBuf(NaluUnit &nalu);

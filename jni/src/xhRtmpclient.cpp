@@ -208,28 +208,27 @@ bool xhRTMPStream::SendMetadata(LPRTMPMetadata lpMetaData)
     
 }
 
-int xhRTMPStream::SendAACSpec()
+int xhRTMPStream::SendAACSpec(unsigned char *data, unsigned int size)
 {
     RTMPPacket packet;
     RTMPPacket_Reset(&packet);
-    RTMPPacket_Alloc(&packet, 4);
+    RTMPPacket_Alloc(&packet, size+2);
     
-    unsigned char *body = new unsigned char[4];
+    unsigned char *body = new unsigned char[size+2];
 
     /*AF 00 + AAC RAW data*/
     body[0] = 0xAF;
     body[1] = 0x00;
-    body[2] = 0x12;
-    body[4] = 0x10;
+    memcpy(&body[2], data, size);
     
     packet.m_packetType = RTMP_PACKET_TYPE_AUDIO;
-    packet.m_nBodySize = 4;
+    packet.m_nBodySize = size+2;
     packet.m_nChannel = 0x04;
     packet.m_nTimeStamp = 0;
     packet.m_hasAbsTimestamp = 0;
     packet.m_headerType = RTMP_PACKET_SIZE_MEDIUM;
     packet.m_nInfoField2 = _pRtmp->m_stream_id;
-    memcpy(packet.m_body,body,4);
+    memcpy(packet.m_body,body,size+2);
     
     /*调用发送接口*/
     int nRet = RTMP_SendPacket(_pRtmp, &packet, false);
@@ -240,7 +239,7 @@ int xhRTMPStream::SendAACSpec()
     return nRet;
 }
 
-int xhRTMPStream::SendAACPacket(unsigned char *data, unsigned int size)
+int xhRTMPStream::SendAACPacket(unsigned char *data, unsigned int size, unsigned int nTimestamp)
 {
     RTMPPacket packet;
     RTMPPacket_Reset(&packet);
@@ -256,7 +255,7 @@ int xhRTMPStream::SendAACPacket(unsigned char *data, unsigned int size)
     packet.m_packetType = RTMP_PACKET_TYPE_AUDIO;
     packet.m_nBodySize = size+2;
     packet.m_nChannel = 0x04;
-    packet.m_nTimeStamp = 0;
+    packet.m_nTimeStamp = nTimestamp;
     packet.m_hasAbsTimestamp = 0;
     packet.m_headerType = RTMP_PACKET_SIZE_MEDIUM;
     packet.m_nInfoField2 = _pRtmp->m_stream_id;

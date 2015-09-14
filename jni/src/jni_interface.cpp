@@ -164,7 +164,7 @@ JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_initAudio) (JNIEnv * env, jobje
 {
 	if (!initaac())
 		__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "init aac failed");
-	stream.SendAACSpec();
+	stream.SendAACSpec(avContext->extradata, avContext->extradata_size);
 }
 
 JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_stopAudio) (JNIEnv * env, jobject obj)
@@ -213,6 +213,7 @@ JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_processAudio) (JNIEnv * env, jo
 	char* buffer = new char[length];
 	memmove(buffer, bufferPtr, length);
 
+
 	AVPacket pkt;
 	av_init_packet(&pkt);
     pkt.data = NULL;
@@ -225,8 +226,11 @@ JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_processAudio) (JNIEnv * env, jo
     }
     else if (got_output)
     {
+		static long long startTime = GetTickCount();
+		long pts = GetTickCount() - startTime;
+
 	    //ignore 7 bit decollator
-    	stream.SendAACPacket(pkt.data+7, pkt.size-7);
+    	stream.SendAACPacket(pkt.data+7, pkt.size-7, pts);
     }
     
     av_free_packet(&pkt);

@@ -88,12 +88,24 @@ void X264Encoder::encode(char* pixels, int size)
         static uint8_t* pps_data = NULL;
         if (nals[i].i_type == NAL_SPS)
         {
+            if (sps_data)
+            {
+                delete []sps_data;
+                sps_len = 0;
+            }
+
             sps_len = nals[i].i_payload-4;
             sps_data = new uint8_t[sps_len];
             memcpy(sps_data, nals[i].p_payload+4, sps_len);
         }
         else if (nals[i].i_type == NAL_PPS)
         {
+            if (pps_data)
+            {
+                delete []pps_data;
+                pps_data = NULL;
+            }
+
             pps_len = nals[i].i_payload-4;
             pps_data = new uint8_t[pps_len];
             memcpy(pps_data, nals[i].p_payload+4, pps_len);
