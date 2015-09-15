@@ -8,14 +8,16 @@ import android.graphics.ImageFormat;
 import android.hardware.Camera;
 import android.hardware.Camera.PreviewCallback;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 
 @SuppressWarnings("deprecation")
-public class CameraPreview extends Activity implements SurfaceHolder.Callback, PreviewCallback {
-	
+public class CameraPreview extends Activity implements SurfaceHolder.Callback, PreviewCallback 
+{
+	static String TAG = "CameraPreview";
 	Camera camera;
 	byte[] previewBuffer;
 	
@@ -62,15 +64,9 @@ public class CameraPreview extends Activity implements SurfaceHolder.Callback, P
 	@Override
     protected void onPause() 
     {
-    	this.stopStream();
-    	
     	super.onPause();
     }
 	
-	private void stopStream()
-	{
-	}
-
 	@Override
 	public void onPreviewFrame(byte[] data, Camera camera) {
 		// TODO Auto-generated method stub
@@ -138,6 +134,7 @@ public class CameraPreview extends Activity implements SurfaceHolder.Callback, P
 	public void surfaceDestroyed(SurfaceHolder holder) {
 		// TODO Auto-generated method stub
 		stopCamera();
+		Log.i(TAG,"surface destroyed");
 	}
 	
 	private void stopCamera()

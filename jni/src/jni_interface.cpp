@@ -39,10 +39,10 @@ void encoderHandler::spsppsCallback(uint8_t* sps, int spsSize, uint8_t* pps,
   metaData.nPpsLen = ppsSize;
   memcpy(metaData.Pps, pps, ppsSize);
 
-  metaData.nWidth = videoWidth;
-  metaData.nHeight = VideoHeight;
-  metaData.nFrameRate = 25;
-  stream.SendMetadata(&metaData);
+    metaData.nWidth = videoWidth;  
+    metaData.nHeight = VideoHeight;  
+    metaData.nFrameRate = 25;
+    //stream.SendMetadata(&metaData);
 }
 
 long long GetTickCount() {
@@ -52,18 +52,23 @@ long long GetTickCount() {
   return (((long long)(tv.tv_sec) * 1000) + tv.tv_usec / 1000);
 }
 
-void encoderHandler::dataCallback(uint8_t* data, int size, bool keyFrame) {
-  static long long startTime = GetTickCount();
-  long pts = GetTickCount() - startTime;
 
-  int decollator = 0;
-  if (data[2] == 0x00) {
-    decollator = 4;
-  } else if (data[2] == 0x01) {
-    decollator = 3;
-  }
+void encoderHandler::dataCallback(uint8_t* data, int size, bool keyFrame)
+{
+	static long long startTime = GetTickCount();
+	long pts = GetTickCount() - startTime;
 
-  stream.SendH264Packet(data + decollator, size - decollator, keyFrame, pts);
+	int decollator = 0;
+	if (data[2] == 0x00)
+	{
+		decollator = 4;
+	} 
+	else if (data[2] == 0x01)
+	{
+		decollator = 3;
+	}
+
+	//stream.SendH264Packet(data+decollator, size-decollator, keyFrame, pts);
 }
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
@@ -77,69 +82,60 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 }
 
 extern "C" {
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(CameraPreview_stopVideo)(JNIEnv* env, jobject obj);
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(CameraPreview_initVideo)(JNIEnv* env, jobject obj, jint width,
-                                          jint height);
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(CameraPreview_processVideo)(JNIEnv* env, jobject obj,
-                                             jbyteArray array, jint length);
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(AudioRecorde_initAudio)(JNIEnv* env, jobject obj);
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(AudioRecorde_stopAudio)(JNIEnv* env, jobject obj);
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(AudioRecorde_processAudio)(JNIEnv* env, jobject obj,
-                                            jbyteArray array, jint length);
+    JNIEXPORT void JNICALL JNI_FUNCTION(CameraPreview_stopVideo) (JNIEnv * env, jobject obj);
+    JNIEXPORT void JNICALL JNI_FUNCTION(CameraPreview_initVideo) (JNIEnv * env, jobject obj, jint width, jint height);
+    JNIEXPORT void JNICALL JNI_FUNCTION(CameraPreview_processVideo) (JNIEnv * env, jobject obj, jbyteArray array, jint length);
+    JNIEXPORT jint JNICALL JNI_FUNCTION(AudioRecorde_initAudio) (JNIEnv * env, jobject obj);
+    JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_stopAudio) (JNIEnv * env, jobject obj);
+    JNIEXPORT void JNICALL JNI_FUNCTION(AudioRecorde_processAudio) (JNIEnv * env, jobject obj, jbyteArray array, jint length);
 };
 
-void ff_log_callback(void* avcl, int level, const char* fmt, va_list vl) {
-  char log[1024] = {0};
-  vsnprintf(log, sizeof(log), fmt, vl);
-  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", log);
-}
+void ff_log_callback(void*avcl, int level, const char*fmt, va_list vl)  
+{  
+    char log[1024] = {0};
+    vsnprintf(log,sizeof(log),fmt,vl);  
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", log);  
+} 
 
-bool initaac() {
-  av_register_all();
+int initaac()
+{
+	av_register_all();
 
-  av_log_set_callback(ff_log_callback);
+	av_log_set_callback(ff_log_callback);
+    
+    AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+    if (!codec) {
+    	__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "find encoder is failed");
+    	return 0;
+    }
+    
+    avContext = avcodec_alloc_context3(codec);
 
-  AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
-  if (!codec) {
-    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "find encoder is failed");
-    return false;
-  }
+    /* put sample parameters */
+    avContext->bit_rate = 64000;
+    avContext->sample_rate = 44100;
+    avContext->channels = 2;
+    avContext->channel_layout = av_get_default_channel_layout(2);
+    avContext->sample_fmt = AV_SAMPLE_FMT_FLT;
+    
+    codec->capabilities &= ~CODEC_CAP_EXPERIMENTAL;
 
-  avContext = avcodec_alloc_context3(codec);
+    if (avcodec_open2(avContext, codec, NULL) < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "open codec is failed");
+       	avcodec_close(avContext);
+       	return 0;
+    }
 
-  /* put sample parameters */
-  avContext->bit_rate = 64000;
-  avContext->sample_rate = 44100;
-  avContext->channels = 2;
-  avContext->sample_fmt = AV_SAMPLE_FMT_FLT;
+    frame = avcodec_alloc_frame();
+    frame->nb_samples = avContext->frame_size;
+    frame->format = avContext->sample_fmt;
+    frame->channel_layout = avContext->channel_layout;
+    
+    int buffer_size = av_samples_get_buffer_size(NULL, avContext->channels, avContext->frame_size, avContext->sample_fmt, 1);
+    samples = (uint16_t*)av_malloc(buffer_size);
+    avcodec_fill_audio_frame(frame, avContext->channels, avContext->sample_fmt, (const uint8_t*)samples, buffer_size, 1);
 
-  codec->capabilities &= ~CODEC_CAP_EXPERIMENTAL;
-
-  if (avcodec_open2(avContext, codec, NULL) < 0) {
-    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "open codec is failed");
-    avcodec_close(avContext);
-    return false;
-  }
-
-  frame = avcodec_alloc_frame();
-  frame->nb_samples = avContext->frame_size;
-  frame->format = avContext->sample_fmt;
-  frame->channel_layout = avContext->channel_layout;
-
-  int buffer_size = av_samples_get_buffer_size(NULL, avContext->channels,
-                                               avContext->frame_size,
-                                               avContext->sample_fmt, 0);
-  samples = (uint16_t*)av_malloc(buffer_size);
-  avcodec_fill_audio_frame(frame, avContext->channels, avContext->sample_fmt,
-                           (const uint8_t*)samples, buffer_size, 0);
-
-  return true;
+    return buffer_size;
 }
 
 void cloneaac() {
@@ -162,11 +158,12 @@ JNIEXPORT void JNICALL
   stream.Close();
 }
 
-JNIEXPORT void JNICALL
-    JNI_FUNCTION(AudioRecorde_initAudio)(JNIEnv* env, jobject obj) {
-  if (!initaac())
-    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "init aac failed");
-  stream.SendAACSpec(avContext->extradata, avContext->extradata_size);
+JNIEXPORT int JNICALL JNI_FUNCTION(AudioRecorde_initAudio) (JNIEnv * env, jobject obj)
+{
+	int bufferSize = initaac();
+	stream.SendAACSpec(avContext->extradata, avContext->extradata_size);
+
+	return bufferSize;
 }
 
 JNIEXPORT void JNICALL
@@ -211,26 +208,31 @@ JNIEXPORT void JNICALL
                                             jbyteArray array, jint length) {
   jbyte* bufferPtr = env->GetByteArrayElements(array, NULL);
 
-  char* buffer = new char[length];
-  memmove(buffer, bufferPtr, length);
+	static long long startTime = GetTickCount();
+	long pts = GetTickCount() - startTime;
 
-  AVPacket pkt;
-  av_init_packet(&pkt);
-  pkt.data = NULL;
-  pkt.size = 0;
+	char* buffer = new char[length];
+	memmove(buffer, bufferPtr, length);
 
-  int got_output = 0;
-  if (avcodec_encode_audio2(avContext, &pkt, frame, &got_output) < 0) {
-    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "encode audio is failed");
-  } else if (got_output) {
-    static long long startTime = GetTickCount();
-    long pts = GetTickCount() - startTime;
+	AVPacket pkt;
+	av_init_packet(&pkt);
+    pkt.data = NULL;
+    pkt.size = 0;
 
-    // ignore 7 bit decollator
-    stream.SendAACPacket(pkt.data + 7, pkt.size - 7, pts);
-  }
-
-  av_free_packet(&pkt);
+    int got_output = 0;
+    frame->data[0] = (uint8_t*)buffer;
+    frame->pts = pts;
+    if (avcodec_encode_audio2(avContext, &pkt, frame, &got_output) < 0)
+    {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "encode audio is failed");
+    }
+    else if (got_output)
+    {
+	    //ignore 7 bit decollator
+    	stream.SendAACPacket(pkt.data+7, pkt.size-7, pts);
+    }
+    
+    av_free_packet(&pkt);
 
   delete[] buffer;
 
